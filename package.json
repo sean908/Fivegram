@@ -1,0 +1,17 @@
+{
+  "name": "fivegram",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.11"
+  },
+  "devDependencies": {
+    "vercel": "^33.0.0",
+    "wrangler": "^3.78.10"
+  }
+}

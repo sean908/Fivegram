@@ -1,0 +1,21 @@
+# Fivegram Cloudflare Workers 配置模板
+# 复制为 wrangler.toml 后填写
+
+# Worker 名称：决定 *.workers.dev 子域
+name = "fivegram"
+
+# 入口文件：保持默认即可
+main = "src/worker.js"
+
+# 兼容性日期：建议保持最新稳定值
+compatibility_date = "2024-05-01"
+
+# 若绑定自定义域名可设为 false
+workers_dev = true
+
+[vars]
+# 路由前缀，影响 /install 与 /webhook 路径
+PREFIX = "fivegram"
+
+# Telegram Webhook 密钥，至少 16 位，需包含大小写与数字
+SECRET_TOKEN = "ChangeMe_Example1234"
