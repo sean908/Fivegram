@@ -1,0 +1,11 @@
+name = "fivegram"
+main = "src/worker.js"
+compatibility_date = "2024-05-01"
+workers_dev = false
+
+[[kv_namespaces]]
+binding = "MESSAGE_MAPPING"
+id = "3d721f04bf7a4aa69d1aa5fa9ebcc406"
+
+[vars]
+PREFIX = "fivegram"

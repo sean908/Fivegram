@@ -13,9 +13,14 @@ compatibility_date = "2024-05-01"
 # 若绑定自定义域名可设为 false
 workers_dev = true
 
+# KV namespace 设置
+[[kv_namespaces]]
+binding = "MESSAGE_MAPPING"
+id = "YOUR_KV_NAMESPACE_ID_HERE"  # 替换为你的 KV namespace ID
+
 [vars]
 # 路由前缀，影响 /install 与 /webhook 路径
 PREFIX = "fivegram"
 
 # Telegram Webhook 密钥，至少 16 位，需包含大小写与数字
-SECRET_TOKEN = "ChangeMe_Example1234"
+#SECRET_TOKEN = "ChangeMe_Example1234"
