@@ -797,8 +797,14 @@ async function handleInitForce(botToken, ownerUid, message) {
   try {
     // 直接执行初始化，不检查冲突
     const metaMessage = await ensureMetadata(botToken, ownerUid, message.chat.id);
-    const metaData = parseMetadataText(metaMessage.text || `${message.chat.id}`);
-    metaData.superGroupChatId = message.chat.id;
+    const metaData = {
+      superGroupChatId: message.chat.id,
+      topicToFromChat: new Map(),
+      fromChatToTopic: new Map(),
+      bannedTopics: [],
+      topicToComment: new Map(),
+      fromChatToComment: new Map()
+    };
     await updateMapping(botToken, ownerUid, metaMessage, metaData);
 
     await api('sendMessage', {
@@ -806,8 +812,12 @@ async function handleInitForce(botToken, ownerUid, message) {
       text: [
         '✅ 强制初始化完成',
         '',
-        '⚠️ 注意：之前绑定的 Supergroup 已失效。',
-        '如需恢复，请在旧群组重新执行 /init。'
+        '⚠️ 注意：',
+        '• 之前绑定的 Supergroup 已失效',
+        '• 所有用户 Topic 映射已清空',
+        '• 用户再次发消息将创建新 Topic',
+        '',
+        '如需恢复旧群组，请在旧群执行 /init。'
       ].join('\n')
     });
   } catch (err) {
