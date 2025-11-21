@@ -41,7 +41,7 @@ function buildStartText(message, ownerUid) {
       '· 在绑定的超级群发送 /init 初始化或用 /status 查看映射',
       '· 私聊/话题内 #del 可删除对应消息，/ban /unban 仅在话题生效',
       '· /reset 可重新置顶元数据，支持 Fivegram 管理命令',
-      '· 支持回复引用同步，基于 Cloudflare + KV 存储'
+      '· 支持回复引用同步，多平台（CF/Vercel/Deno/Netlify）均可部署'
     ].join('\n');
   }
 
@@ -702,6 +702,14 @@ async function handleStatus(botToken, ownerUid, message) {
 // 超级群组内 /init 处理
 async function handleInit(botToken, ownerUid, message) {
   const api = createApiCaller(botToken, ownerUid, '/init');
+  // Owner 身份验证
+  if (message.from?.id?.toString() !== ownerUid) {
+    await api('sendMessage', {
+      chat_id: message.chat.id,
+      text: '⚠️ 仅机器人所有者可以执行初始化操作。'
+    });
+    return;
+  }
   try {
     const existing = await loadMetadata(botToken, ownerUid);
     if (existing?.text) {
@@ -714,6 +722,47 @@ async function handleInit(botToken, ownerUid, message) {
         });
         return;
       }
+      if (boundGroupId !== message.chat.id) {
+        // 统计现有映射数量
+        const topicCount = parsed.topicToFromChat.size;
+
+        // 尝试获取旧群组名称
+        let groupName = `Supergroup (ID: ${boundGroupId})`;
+        try {
+          const chatInfo = await callTelegramApi(botToken, 'getChat',
+            { chat_id: boundGroupId },
+            { ownerUid, context: '获取旧群组信息' }
+          );
+          if (chatInfo.ok && chatInfo.result?.title) {
+            groupName = `"${chatInfo.result.title}" (ID: ${boundGroupId})`;
+          }
+        } catch (err) {
+          // 忽略获取失败，使用默认名称
+        }
+
+        await api('sendMessage', {
+          chat_id: message.chat.id,
+          text: [
+            '⚠️ 安全警告：检测到多 Supergroup 冲突',
+            '',
+            `Owner 已经绑定到 ${groupName}`,
+            `当前包含 ${topicCount} 个用户 Topic 映射。`,
+            '',
+            '⚡ 如果继续初始化当前群组：',
+            '• 之前群组的绑定将会失效',
+            '• 所有 Topic 映射将无法访问',
+            '• 用户将无法发送消息到旧群组',
+            '',
+            '📋 推荐操作步骤：',
+            '1️⃣ 先在旧群组执行 /reset 清空绑定',
+            '2️⃣ 然后在新群组执行 /init 重新初始化',
+            '',
+            '⚙️ 强制切换（不推荐）：',
+            '如果确定要立即切换，请使用 /init_force 命令'
+          ].join('\n')
+        });
+        return;
+      }
     }
 
     const metaMessage = await ensureMetadata(botToken, ownerUid, message.chat.id);
@@ -722,12 +771,49 @@ async function handleInit(botToken, ownerUid, message) {
     await updateMapping(botToken, ownerUid, metaMessage, metaData);
     await api('sendMessage', {
       chat_id: message.chat.id,
-      text: '初始化完成，后续私聊消息会按 Topic 隔离。'
+      text: '✅ 初始化完成，后续私聊消息会按 Topic 隔离。'
     });
   } catch (err) {
     await api('sendMessage', {
       chat_id: message.chat.id,
-      text: `初始化失败: ${err.message}`
+      text: `❌ 初始化失败: ${err.message}`
+    });
+  }
+}
+
+// 强制初始化（跳过冲突检查）
+async function handleInitForce(botToken, ownerUid, message) {
+  const api = createApiCaller(botToken, ownerUid, '/init_force');
+
+  // Owner 身份验证
+  if (message.from?.id?.toString() !== ownerUid) {
+    await api('sendMessage', {
+      chat_id: message.chat.id,
+      text: '⚠️ 仅机器人所有者可以执行此操作。'
+    });
+    return;
+  }
+
+  try {
+    // 直接执行初始化，不检查冲突
+    const metaMessage = await ensureMetadata(botToken, ownerUid, message.chat.id);
+    const metaData = parseMetadataText(metaMessage.text || `${message.chat.id}`);
+    metaData.superGroupChatId = message.chat.id;
+    await updateMapping(botToken, ownerUid, metaMessage, metaData);
+
+    await api('sendMessage', {
+      chat_id: message.chat.id,
+      text: [
+        '✅ 强制初始化完成',
+        '',
+        '⚠️ 注意：之前绑定的 Supergroup 已失效。',
+        '如需恢复，请在旧群组重新执行 /init。'
+      ].join('\n')
+    });
+  } catch (err) {
+    await api('sendMessage', {
+      chat_id: message.chat.id,
+      text: `❌ 强制初始化失败: ${err.message}`
     });
   }
 }
@@ -750,6 +836,10 @@ async function handleGroupWideCommands(botToken, ownerUid, message) {
   const cmd = message.text.split(' ')[0];
   if (cmd === '/init') {
     await handleInit(botToken, ownerUid, message);
+    return true;
+  }
+  if (cmd === '/init_force') {
+    await handleInitForce(botToken, ownerUid, message);
     return true;
   }
   if (cmd === '/reset') {
